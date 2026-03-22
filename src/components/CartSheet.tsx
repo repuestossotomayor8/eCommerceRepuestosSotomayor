@@ -16,26 +16,31 @@ export function CartSheet({ children }: { children: React.ReactNode }) {
 
   const handleWhatsAppCheckout = () => {
     const phoneNumber = "584144416287"; // Número Sotomayor
-    let message = "¡Hola *Repuestos Sotomayor*! Quisiera realizar el siguiente pedido:\n\n";
+    let message = "¡Hola *Repuestos Sotomayor*! 👋 Quisiera procesar el siguiente pedido:\n\n";
+    message += "🛒 *DETALLE DE COMPRA*\n──────────────────\n";
 
     items.forEach((item) => {
       let calcBcv = item.product.price * 1.6;
-      message += `▪ ${item.quantity}x ${item.product.name}\n`;
-      message += `  └ Efectivo: $${(item.product.price * item.quantity).toFixed(2)}\n`;
-      message += `  └ Tasa BCV: $${(calcBcv * item.quantity).toFixed(2)}`;
-      if (bcvRate) message += ` (Ref: Bs. ${(calcBcv * item.quantity * bcvRate).toFixed(2)})`;
+      let efec = (item.product.price * item.quantity).toFixed(2);
+      let pto = (calcBcv * item.quantity).toFixed(2);
+      
+      message += `🔸 *${item.quantity}x ${item.product.name}*\n`;
+      message += `   💵 Efectivo: *$${efec}*\n`;
+      message += `   💳 Punto/Pago Móvil: *$${pto}*`;
+      if (bcvRate) message += ` (Aprox Bs. ${(calcBcv * item.quantity * bcvRate).toFixed(2)})`;
       message += `\n\n`;
     });
 
-    message += `*TOTAL DEL PEDIDO:*\n`;
-    message += `💵 Si pago en Efectivo: *$${getSubtotalEfectivo().toFixed(2)}*\n`;
-    message += `💳 Si pago a Tasa BCV: *$${getSubtotalBcvUsd().toFixed(2)}*`;
+    message += `──────────────────\n`;
+    message += `📝 *RESUMEN TOTAL*\n`;
+    message += `💰 *Si pago en Efectivo:* $${getSubtotalEfectivo().toFixed(2)}\n`;
+    message += `💳 *Si pago con Tasa BCV:* $${getSubtotalBcvUsd().toFixed(2)}`;
     
     if (bcvRate) {
-      message += `\n(Aprox. Bs. ${(getSubtotalBcvUsd() * bcvRate).toFixed(2)} hoy)`;
+      message += `\n(Referencia en Bs: ${(getSubtotalBcvUsd() * bcvRate).toFixed(2)})`;
     }
     
-    message += `\n\nPor favor confírmenme disponibilidad y métodos de pago de inmediato. ¡Gracias!`;
+    message += `\n\nPor favor confírmenme disponibilidad y métodos de pago. ¡Gracias!`;
 
     const encodedMessage = encodeURIComponent(message);
     window.open(`https://wa.me/${phoneNumber}?text=${encodedMessage}`, "_blank");

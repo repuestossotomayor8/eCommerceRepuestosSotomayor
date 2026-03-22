@@ -50,10 +50,10 @@ export default function DiscountBanner() {
           </p>
           <p className="mt-0.5 font-display text-sm font-bold leading-snug text-white sm:text-base">
             Todos nuestros productos tienen{" "}
-            <span className="text-green-400">descuento en divisas</span>
+            <span className="text-green-400">descuentos hasta el 40%</span>
           </p>
           <p className="mt-0.5 text-xs text-green-300/70">
-            Paga en USDT, Zelle o $ efectivo y ahorra 37%
+            Paga en USDT, Zelle o $ efectivo y ahorra hasta 40%
           </p>
         </div>
 

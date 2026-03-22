@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase/client";
-import { Plus, Pencil, Trash2, Upload, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus, Pencil, Trash2, Upload, Loader2, ChevronLeft, ChevronRight, FileText, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import Link from "next/link";
 import imageCompression from 'browser-image-compression';
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -55,7 +56,7 @@ interface Product {
   category_id: string;
   stock_status: boolean;
   categories?: { name: string };
-  brands?: { name: string };
+  brands?: { name: string; image_url?: string };
 }
 
 export default function ProductsAdminPage() {
@@ -68,6 +69,8 @@ export default function ProductsAdminPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
+  const [searchInput, setSearchInput] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
   const itemsPerPage = 8;
   const [formData, setFormData] = useState({
     id: "",
@@ -90,8 +93,16 @@ export default function ProductsAdminPage() {
     const from = (currentPage - 1) * itemsPerPage;
     const to = from + itemsPerPage - 1;
 
+    let query = supabase.from("products")
+      .select("*, categories:category_id (name), brands:brand_id (name, image_url)", { count: "exact" })
+      .order("created_at", { ascending: false });
+
+    if (searchTerm) {
+      query = query.or(`name.ilike.%${searchTerm}%,code_1.ilike.%${searchTerm}%`);
+    }
+
     const [prodsRes, catsRes, brandsRes] = await Promise.all([
-      supabase.from("products").select("*, categories:category_id (name), brands:brand_id (name)", { count: "exact" }).order("created_at", { ascending: false }).range(from, to),
+      query.range(from, to),
       supabase.from("categories").select("id, name").order("name"),
       supabase.from("brands").select("id, name").order("name"),
     ]);
@@ -112,9 +123,18 @@ export default function ProductsAdminPage() {
     setLoading(false);
   };
 
+  // Debounce search input
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(() => {
+      setSearchTerm(searchInput);
+      if (searchInput !== searchTerm) setCurrentPage(1);
+    }, 400);
+    return () => clearTimeout(delayDebounceFn);
+  }, [searchInput]);
+
   useEffect(() => {
     fetchData();
-  }, [currentPage]);
+  }, [currentPage, searchTerm]);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -246,9 +266,24 @@ export default function ProductsAdminPage() {
 
   return (
     <div className="flex-1 space-y-4 p-8 pt-6">
-      <div className="flex items-center justify-between space-y-2">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <h2 className="text-3xl font-bold tracking-tight">Productos</h2>
         <div className="flex items-center space-x-2">
+          <div className="relative w-full sm:w-64 hidden md:block">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              type="search"
+              placeholder="Buscar repuesto o código..."
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              className="pl-8 bg-background"
+            />
+          </div>
+          <Link href="/admin/productos/importar">
+            <Button variant="outline" className="hidden sm:flex bg-background">
+              <FileText className="mr-2 h-4 w-4" /> Importar CSV
+            </Button>
+          </Link>
           <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
             <DialogTrigger asChild>
               <Button onClick={openCreateModal}>
@@ -496,6 +531,7 @@ export default function ProductsAdminPage() {
               <TableHead>Nombre</TableHead>
               <TableHead>Categoría</TableHead>
               <TableHead>Marca</TableHead>
+              <TableHead>Códigos</TableHead>
               <TableHead>Precio</TableHead>
               <TableHead>Stock</TableHead>
               <TableHead className="text-right">Acciones</TableHead>
@@ -504,11 +540,11 @@ export default function ProductsAdminPage() {
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={7} className="h-24 text-center">Cargando productos...</TableCell>
+                <TableCell colSpan={8} className="h-24 text-center">Cargando productos...</TableCell>
               </TableRow>
             ) : products.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="h-24 text-center">No hay productos registrados.</TableCell>
+                <TableCell colSpan={8} className="h-24 text-center">No hay productos registrados.</TableCell>
               </TableRow>
             ) : (
               products.map((prod) => (
@@ -518,7 +554,29 @@ export default function ProductsAdminPage() {
                   </TableCell>
                   <TableCell className="font-medium">{prod.name}</TableCell>
                   <TableCell>{prod.categories?.name}</TableCell>
-                  <TableCell className="text-muted-foreground uppercase text-xs font-bold tracking-wider">{prod.brands?.name || <span className="text-[10px] font-normal opacity-50">Genérico</span>}</TableCell>
+                  <TableCell>
+                    {prod.brands?.image_url ? (
+                      <div className="flex items-center gap-2">
+                        <div className="h-6 w-10 bg-white rounded flex items-center justify-center p-0.5 border">
+                          <img src={prod.brands.image_url} alt={prod.brands.name} className="max-h-full max-w-full object-contain" />
+                        </div>
+                        <span className="text-muted-foreground uppercase text-[10px] font-bold tracking-wider hidden xl:inline-block">
+                          {prod.brands.name}
+                        </span>
+                      </div>
+                    ) : (
+                      <span className="text-muted-foreground uppercase text-xs font-bold tracking-wider">
+                        {prod.brands?.name || <span className="text-[10px] font-normal opacity-50">Genérico</span>}
+                      </span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex flex-col gap-0.5 text-xs">
+                      {prod.code_1 && <span className="font-mono text-primary font-medium">{prod.code_1}</span>}
+                      {prod.code_2 && <span className="font-mono text-muted-foreground">{prod.code_2}</span>}
+                      {!prod.code_1 && !prod.code_2 && <span className="text-muted-foreground/50 text-[10px] italic">Sin códigos</span>}
+                    </div>
+                  </TableCell>
                   <TableCell>${prod.price}</TableCell>
                   <TableCell>
                     {prod.stock_status ? (
