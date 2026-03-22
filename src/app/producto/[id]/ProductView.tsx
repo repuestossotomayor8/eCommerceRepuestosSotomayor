@@ -111,21 +111,31 @@ export default function ProductView({ product }: ProductViewProps) {
           </div>
           
           <div className="mt-auto pt-8 border-t border-border">
-             <div className="flex flex-col mb-8 gap-1.5">
-                <span className="font-display text-4xl font-black tracking-tight text-green-600 dark:text-green-500 flex items-center">
-                  <span className="text-sm uppercase tracking-widest opacity-70 mr-3 font-bold">Efectivo</span>
-                  ${product.price.toLocaleString("es-VE", { minimumFractionDigits: 2 })}
-                </span>
-                <span className="font-display text-2xl font-bold tracking-tight text-primary flex items-center mt-2">
-                  <span className="text-xs uppercase tracking-widest opacity-70 mr-3">Tasa BCV</span>
+             {/* Main BCV price */}
+             <div className="flex flex-col mb-5 gap-1">
+                <span className="font-display text-4xl font-black tracking-tight text-primary">
                   ${(product.price * 1.6).toLocaleString("es-VE", { minimumFractionDigits: 2 })}
                 </span>
+                <span className="text-xs uppercase tracking-widest text-muted-foreground font-semibold">Precio Tasa BCV</span>
                 {bcvRate && (
-                  <span className="text-sm font-bold text-muted-foreground uppercase tracking-wider mt-3 bg-muted w-fit px-3 py-1.5 rounded-md">
-                    Referencia en Bs: {(product.price * 1.6 * bcvRate).toLocaleString("es-VE", { minimumFractionDigits: 2 })}
+                  <span className="text-sm font-bold text-muted-foreground uppercase tracking-wider mt-2 bg-muted w-fit px-3 py-1.5 rounded-md">
+                    Ref. Bs: {(product.price * 1.6 * bcvRate).toLocaleString("es-VE", { minimumFractionDigits: 2 })}
                   </span>
                 )}
              </div>
+
+             {/* Discount callout for divisas */}
+             <div className="mb-6 flex items-start gap-3 rounded-xl border border-green-500/30 bg-green-500/10 p-4">
+               <span className="text-2xl">⚡</span>
+               <div>
+                 <p className="text-sm font-black uppercase tracking-wider text-green-700 dark:text-green-400">¡Descuento pagando en Divisas!</p>
+                 <p className="text-sm text-muted-foreground mt-1">Paga en USDT, Zelle o $ efectivo y obtén este repuesto por solo:</p>
+                 <p className="mt-2 font-display text-3xl font-black text-green-600 dark:text-green-500">
+                   ${product.price.toLocaleString("es-VE", { minimumFractionDigits: 2 })} <span className="text-base font-bold opacity-70">USD</span>
+                 </p>
+               </div>
+             </div>
+
              <button 
                onClick={handleAddToCart}
                className="w-full flex justify-center items-center gap-2 rounded-lg bg-primary py-4 font-display text-sm md:text-base font-bold uppercase tracking-wide text-primary-foreground transition-all hover:bg-primary/90 shadow-md hover:shadow-lg hover:-translate-y-0.5"
