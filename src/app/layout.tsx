@@ -5,7 +5,7 @@ export const metadata = {
   title: "Repuestos Sotomayor | Repuestos y Autopartes en Venezuela",
   description: "Catálogo de repuestos y autopartes para tu vehículo. Precios en efectivo y Tasa BCV. Pídenos por WhatsApp.",
   icons: {
-    icon: "/favicon.ico",
+    icon: "/favicon.ico?v=2",
   },
   openGraph: {
     title: "Repuestos Sotomayor",
