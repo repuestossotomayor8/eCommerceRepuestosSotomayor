@@ -104,8 +104,8 @@ const ProductsSection = async ({ searchQuery = "", page = 1, categoria, marca, s
   return (
     <section id="productos" className="w-full">
       <div className="w-full mb-6">
-        {/* Breadcrumbs */}
-        <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 mb-6 font-medium">
+        {/* Breadcrumbs - hidden on mobile */}
+        <div className="hidden sm:flex flex-wrap items-center gap-2 text-xs text-slate-500 mb-6 font-medium">
           <span>Inicio</span>
           <BreadcrumbArrow className="w-3 h-3" />
           <span>Repuestos</span>
@@ -123,43 +123,38 @@ const ProductsSection = async ({ searchQuery = "", page = 1, categoria, marca, s
           )}
         </div>
 
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-slate-200 pb-4">
-          <div>
+        <div className="flex items-center justify-between gap-3 pb-3 border-b border-slate-200 md:pb-4">
+          <div className="min-w-0">
             {searchQuery ? (
               <>
-                <h2 className="font-display text-2xl font-black uppercase text-foreground md:text-3xl">
+                <h2 className="font-display text-lg font-black uppercase text-foreground md:text-3xl truncate">
                   {categoria ? `${categoria} ` : ''}Resultados: <span className="text-primary tracking-tight">"{searchQuery}"</span>
                 </h2>
-                <div className="mt-2 text-sm text-muted-foreground flex items-center gap-2">
-                  <span>
-                    {count === 0
-                      ? "Ningún producto encontrado."
-                      : (count === 1 ? "1 resultado." : `${count} resultados.`)}
-                  </span>
+                <div className="text-xs text-muted-foreground mt-0.5 md:mt-2 md:text-sm">
+                  {count === 0
+                    ? "Ningún producto encontrado."
+                    : (count === 1 ? "1 resultado." : `${count} resultados.`)}
                 </div>
               </>
             ) : (
-              <h2 className="font-display text-2xl font-black uppercase text-foreground md:text-3xl tracking-tight">
-                {categoria ? categoria : (marca ? `Repuestos ${marca}` : "Nuestro Catálogo")}
+              <h2 className="font-display text-lg font-black uppercase text-foreground md:text-3xl tracking-tight">
+                {categoria ? categoria : (marca ? `Repuestos ${marca}` : "Catálogo")}
               </h2>
             )}
           </div>
           
-          <div className="flex items-center self-start md:self-end gap-3 mt-4 md:mt-0 w-full md:w-auto">
-             <div className="flex items-center gap-2 text-sm font-bold text-slate-600 shrink-0">
-               <SlidersHorizontal className="w-4 h-4" />
-               <span className="hidden sm:inline">Ordenar por:</span>
-             </div>
+          <div className="flex items-center gap-2 shrink-0">
+             <SlidersHorizontal className="w-4 h-4 text-slate-500 hidden sm:block" />
              <SortDropdown currentSort={sort} />
           </div>
         </div>
 
-        {/* Búsquedas Relacionadas (Píldoras ML Style) */}
+        {/* Búsquedas Sugeridas */}
         {!categoria && !marca && (
-          <div className="flex items-center gap-2 mt-4 overflow-x-auto scrollbar-hide pb-2">
-            <span className="text-xs text-slate-500 whitespace-nowrap hidden sm:inline">Búsquedas sugeridas:</span>
+          <div className="flex items-center gap-1.5 mt-2 overflow-x-auto scrollbar-hide pb-1 md:mt-4 md:gap-2 md:pb-2">
+            <span className="text-[10px] text-slate-400 whitespace-nowrap hidden sm:inline md:text-xs">Sugeridas:</span>
             {RELATED_KEYWORDS.map(kw => (
-               <NextLink key={kw} href={`/catalogo?q=${kw}`} className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors">
+               <NextLink key={kw} href={`/catalogo?q=${kw}`} className="bg-slate-100 hover:bg-slate-200 text-slate-600 px-2.5 py-1 rounded-full text-[11px] md:text-xs font-medium whitespace-nowrap transition-colors">
                   {kw}
                </NextLink>
             ))}

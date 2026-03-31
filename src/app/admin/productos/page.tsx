@@ -453,25 +453,124 @@ export default function ProductsAdminPage() {
             variant="outline"
             className="hidden sm:flex bg-background"
             onClick={async () => {
-              const { data } = await supabase
-                .from("products")
-                .select("name, price, description, code_1, code_2, categories:category_id(name), brands:brand_id(name)")
-                .order("name");
-              if (!data || data.length === 0) { toast.error("No hay productos para exportar"); return; }
-              const rows = data.map((p: any) => ({
-                Nombre: p.name,
-                "Precio USD": p.price,
-                Categoría: p.categories?.name || "",
-                Marca: p.brands?.name || "",
-                Descripción: p.description || "",
-                "Código OEM": p.code_1 || "",
-                "Cod. Alterno": p.code_2 || "",
-              }));
-              const ws = XLSX.utils.json_to_sheet(rows);
-              const wb = XLSX.utils.book_new();
-              XLSX.utils.book_append_sheet(wb, ws, "Productos");
-              XLSX.writeFile(wb, `productos_sotomayor_${new Date().toISOString().slice(0,10)}.xlsx`);
-              toast.success(`${rows.length} productos exportados`);
+              try {
+                toast.loading("Generando Excel profesional...", { id: "export" });
+                const { data, error } = await supabase
+                  .from("products")
+                  .select("name, price, description, code_1, code_2, stock_status, image_url, image_2, categories:category_id(name), brands:brand_id(name)")
+                  .order("name");
+                if (error) throw error;
+                if (!data || data.length === 0) { toast.dismiss("export"); toast.error("No hay productos para exportar"); return; }
+
+                const ExcelJS = (await import("exceljs")).default;
+                const workbook = new ExcelJS.Workbook();
+                workbook.creator = "Repuestos Sotomayor C.A.";
+                workbook.created = new Date();
+
+                const sheet = workbook.addWorksheet("Productos", {
+                  views: [{ state: "frozen" as const, ySplit: 2 }],
+                });
+
+                const PRIMARY = "C0392B";
+                const DARK = "2C3E50";
+                const LIGHT = "F8F9FA";
+                const WHITE = "FFFFFF";
+
+                const COLUMNS = [
+                  { header: "Nombre", key: "name", width: 38 },
+                  { header: "Precio USD", key: "price", width: 14 },
+                  { header: "Categoría", key: "category", width: 22 },
+                  { header: "Marca", key: "brand", width: 18 },
+                  { header: "Estado", key: "status", width: 12 },
+                  { header: "Descripción", key: "description", width: 50 },
+                  { header: "Código OEM", key: "code_1", width: 16 },
+                  { header: "Cod. Alterno", key: "code_2", width: 16 },
+                  { header: "URL Imagen", key: "image_url", width: 32 },
+                  { header: "URL Img Extra", key: "image_2", width: 32 },
+                ];
+                sheet.columns = COLUMNS;
+
+                // Fila 1: Título corporativo
+                sheet.mergeCells(1, 1, 1, COLUMNS.length);
+                const titleCell = sheet.getCell("A1");
+                titleCell.value = `CATÁLOGO DE PRODUCTOS — REPUESTOS SOTOMAYOR C.A. — ${new Date().toLocaleDateString("es-VE", { day: "2-digit", month: "long", year: "numeric" })}`;
+                titleCell.font = { name: "Calibri", size: 13, bold: true, color: { argb: WHITE } };
+                titleCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: DARK } };
+                titleCell.alignment = { horizontal: "center", vertical: "middle" };
+                sheet.getRow(1).height = 32;
+
+                // Fila 2: Cabeceras rojas
+                const headerRow = sheet.getRow(2);
+                headerRow.values = COLUMNS.map(c => c.header);
+                headerRow.height = 24;
+                headerRow.eachCell((cell) => {
+                  cell.font = { name: "Calibri", size: 11, bold: true, color: { argb: WHITE } };
+                  cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: PRIMARY } };
+                  cell.alignment = { horizontal: "center", vertical: "middle" };
+                  cell.border = {
+                    top: { style: "thin", color: { argb: DARK } },
+                    bottom: { style: "thin", color: { argb: DARK } },
+                    left: { style: "thin", color: { argb: DARK } },
+                    right: { style: "thin", color: { argb: DARK } },
+                  };
+                });
+
+                // Datos
+                data.forEach((item: any, idx: number) => {
+                  const row = sheet.addRow({
+                    name: item.name,
+                    price: item.price,
+                    category: item.categories?.name || "",
+                    brand: item.brands?.name || "",
+                    status: item.stock_status ? "Activo" : "Inactivo",
+                    description: item.description || "",
+                    code_1: item.code_1 || "",
+                    code_2: item.code_2 || "",
+                    image_url: item.image_url || "",
+                    image_2: item.image_2 || "",
+                  });
+                  const isEven = idx % 2 === 0;
+                  row.eachCell({ includeEmpty: true }, (cell) => {
+                    cell.font = { name: "Calibri", size: 10 };
+                    cell.border = {
+                      bottom: { style: "hair", color: { argb: "D5D8DC" } },
+                      left: { style: "hair", color: { argb: "D5D8DC" } },
+                      right: { style: "hair", color: { argb: "D5D8DC" } },
+                    };
+                    if (isEven) {
+                      cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: LIGHT } };
+                    }
+                  });
+                  row.getCell("price").numFmt = '"$"#,##0.00';
+                  row.getCell("price").alignment = { horizontal: "right" };
+                  const statusCell = row.getCell("status");
+                  statusCell.alignment = { horizontal: "center" };
+                  statusCell.font = item.stock_status
+                    ? { name: "Calibri", size: 10, color: { argb: "27AE60" } }
+                    : { name: "Calibri", size: 10, bold: true, color: { argb: "E74C3C" } };
+                });
+
+                sheet.autoFilter = { from: { row: 2, column: 1 }, to: { row: 2 + data.length, column: COLUMNS.length } };
+                const sRow = data.length + 3;
+                sheet.mergeCells(sRow, 1, sRow, 3);
+                const sCell = sheet.getCell(sRow, 1);
+                sCell.value = `Total de productos: ${data.length}`;
+                sCell.font = { name: "Calibri", size: 11, bold: true, italic: true, color: { argb: DARK } };
+
+                const buffer = await workbook.xlsx.writeBuffer();
+                const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = `productos_sotomayor_${new Date().toISOString().slice(0, 10)}.xlsx`;
+                a.click();
+                URL.revokeObjectURL(url);
+                toast.dismiss("export");
+                toast.success(`${data.length} productos exportados con éxito`);
+              } catch (err: any) {
+                toast.dismiss("export");
+                toast.error(`Error al exportar: ${err.message}`);
+              }
             }}
           >
             <Download className="mr-2 h-4 w-4" /> Exportar Excel
@@ -515,114 +614,6 @@ export default function ProductsAdminPage() {
                             className="flex min-h-[120px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 resize-y"
                           />
                         </div>
-                      </div>
-
-                      {/* Specifications Editor */}
-                      <div className="space-y-4 rounded-lg border bg-card p-4 shadow-sm">
-                        <div className="flex items-center justify-between flex-wrap gap-2">
-                          <h4 className="text-xs uppercase text-muted-foreground font-bold tracking-wider">Especificaciones T&#233;cnicas</h4>
-                          <div className="flex gap-1.5">
-                            {formData.specifications.length === 0 && formData.category_id && (
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                className="h-7 text-xs gap-1 border-primary/30 text-primary hover:bg-primary/10"
-                                onClick={() => {
-                                  const catName = categories.find(c => c.id === formData.category_id)?.name?.toLowerCase() || "";
-                                  const templates: Record<string, SpecItem[]> = {
-                                    "suspensi\u00f3n": [
-                                      { key: "Material", value: "" },
-                                      { key: "Posici\u00f3n", value: "" },
-                                      { key: "Aplicaci\u00f3n", value: "" },
-                                      { key: "Incluye", value: "" },
-                                      { key: "Garant\u00eda", value: "" },
-                                    ],
-                                    "suspensi\u00f3n y direcci\u00f3n": [
-                                      { key: "Material", value: "" },
-                                      { key: "Posici\u00f3n", value: "" },
-                                      { key: "Aplicaci\u00f3n", value: "" },
-                                      { key: "Incluye", value: "" },
-                                      { key: "Garant\u00eda", value: "" },
-                                    ],
-                                    "motor": [
-                                      { key: "Tipo", value: "" },
-                                      { key: "Cilindrada", value: "" },
-                                      { key: "Material", value: "" },
-                                      { key: "Aplicaci\u00f3n", value: "" },
-                                      { key: "Incluye", value: "" },
-                                    ],
-                                    "frenos": [
-                                      { key: "Material", value: "" },
-                                      { key: "Posici\u00f3n", value: "" },
-                                      { key: "Di\u00e1metro", value: "" },
-                                      { key: "Aplicaci\u00f3n", value: "" },
-                                      { key: "Incluye", value: "" },
-                                    ],
-                                    "tren delantero": [
-                                      { key: "Material", value: "" },
-                                      { key: "Posici\u00f3n", value: "" },
-                                      { key: "Lado", value: "" },
-                                      { key: "Aplicaci\u00f3n", value: "" },
-                                      { key: "Incluye", value: "" },
-                                    ],
-                                  };
-                                  // Find matching template (partial match)
-                                  const templateKey = Object.keys(templates).find(k => catName.includes(k));
-                                  const specs = templateKey
-                                    ? templates[templateKey]
-                                    : [
-                                        { key: "Material", value: "" },
-                                        { key: "Aplicaci\u00f3n", value: "" },
-                                        { key: "Incluye", value: "" },
-                                        { key: "Garant\u00eda", value: "" },
-                                      ];
-                                  setFormData(prev => ({ ...prev, specifications: specs }));
-                                  toast.success("Plantilla cargada. Completa los valores.");
-                                }}
-                              >
-                                <ClipboardList className="h-3 w-3" /> Cargar Plantilla
-                              </Button>
-                            )}
-                            <Button type="button" variant="outline" size="sm" onClick={addSpecRow} className="h-7 text-xs gap-1">
-                              <Plus className="h-3 w-3" /> Agregar
-                            </Button>
-                          </div>
-                        </div>
-                        
-                        {formData.specifications.length === 0 ? (
-                          <div className="text-center py-4 text-muted-foreground text-xs border border-dashed rounded-lg">
-                            Sin especificaciones. Usa &quot;Cargar Plantilla&quot; o &quot;Agregar&quot; para a&#241;adir detalles t&#233;cnicos.
-                          </div>
-                        ) : (
-                          <div className="space-y-2">
-                            {formData.specifications.map((spec, index) => (
-                              <div key={index} className="flex items-center gap-2">
-                                <Input
-                                  placeholder="Ej. Material"
-                                  value={spec.key}
-                                  onChange={(e) => updateSpecRow(index, "key", e.target.value)}
-                                  className="bg-background text-sm flex-[2]"
-                                />
-                                <Input
-                                  placeholder="Ej. Acero Inoxidable"
-                                  value={spec.value}
-                                  onChange={(e) => updateSpecRow(index, "value", e.target.value)}
-                                  className="bg-background text-sm flex-[3]"
-                                />
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8 shrink-0 text-destructive hover:bg-destructive/10"
-                                  onClick={() => removeSpecRow(index)}
-                                >
-                                  <XIcon className="h-3.5 w-3.5" />
-                                </Button>
-                              </div>
-                            ))}
-                          </div>
-                        )}
                       </div>
 
                       <div className="space-y-4 rounded-lg border bg-card p-4 shadow-sm">

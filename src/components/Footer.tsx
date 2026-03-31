@@ -17,7 +17,7 @@ const Footer = () => {
             <ul className="mt-4 space-y-3 font-body text-sm text-surface-dark-foreground/70">
               <li className="flex items-start gap-2">
                 <MapPin size={16} className="mt-0.5 flex-shrink-0 text-primary" />
-                Valencia, Estado Carabobo, Venezuela
+                Av. Padre Alfonzo Cruce con Av. Michelena. Edif. 90-64. Valencia.
               </li>
               <li className="flex items-start gap-2">
                 <Phone size={16} className="mt-0.5 flex-shrink-0 text-primary" />

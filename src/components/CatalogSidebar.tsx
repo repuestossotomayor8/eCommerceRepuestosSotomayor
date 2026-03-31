@@ -108,7 +108,7 @@ export default function CatalogSidebar({ categories, brands }: Props) {
                 <div className={`w-4 h-4 rounded-[4px] border flex items-center justify-center shrink-0 transition-colors ${isActive ? "bg-primary border-primary" : "border-slate-300 bg-white"}`}>
                   {isActive && <Check className="w-3 h-3 text-white" />}
                 </div>
-                <span className="text-sm truncate leading-none">{brand.name}</span>
+                <span className="text-sm truncate leading-none uppercase">{brand.name}</span>
               </button>
             );
           })}

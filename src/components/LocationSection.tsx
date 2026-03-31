@@ -20,8 +20,8 @@ export default function LocationSection() {
                 <div>
                   <h4 className="font-bold text-slate-800 text-lg">Dirección Principal</h4>
                   <p className="text-sm mt-1 leading-relaxed max-w-sm">
-                    Av. Principal, Edificio Sotomayor, Local 1.
-                    <br />Caracas, Venezuela.
+                    Avenida Padre Alfonzo Cruce con Avenida Michelena.
+                    <br />Edif. 90-64. Sector la Candelaria. Valencia, Edo. Carabobo.
                   </p>
                 </div>
               </div>
@@ -33,8 +33,8 @@ export default function LocationSection() {
                 <div>
                   <h4 className="font-bold text-slate-800 text-lg">Horario Laborable</h4>
                   <p className="text-sm mt-1 leading-relaxed">
-                    Lunes a Viernes: 8:00 AM - 5:00 PM<br/>
-                    Sábados: 8:30 AM - 1:00 PM
+                    Lunes a Viernes: 8:30 AM - 4:30 PM<br/>
+                    Sábados: 8:30 AM - 2:00 PM
                   </p>
                 </div>
               </div>
@@ -46,24 +46,24 @@ export default function LocationSection() {
                 <div>
                   <h4 className="font-bold text-slate-800 text-lg">Contacto Directo</h4>
                   <p className="text-sm mt-1 leading-relaxed">
-                    Teléfono y Mensajería: +58 412 000 0000<br/>
-                    Ventas y Asesoría Técnica a nivel nacional.
+                    Teléfonos: 0412-423-6129 / 0414-441-6287<br/>
+                    Correo: repuestosotomayorca@gmail.com
                   </p>
                 </div>
               </div>
             </div>
 
-            <a href="https://maps.google.com" target="_blank" rel="noopener noreferrer" className="mt-10 inline-flex items-center gap-2 bg-slate-900 text-white px-6 py-3.5 rounded-xl font-bold hover:bg-slate-800 transition-colors w-max shadow-md shadow-slate-900/20 group">
+            <a href="https://maps.app.goo.gl/x5kdkXQe3iEPAZUX7" target="_blank" rel="noopener noreferrer" className="mt-10 inline-flex items-center gap-2 bg-slate-900 text-white px-6 py-3.5 rounded-xl font-bold hover:bg-slate-800 transition-colors w-max shadow-md shadow-slate-900/20 group">
               <Navigation className="w-5 h-5 transition-transform group-hover:translate-x-1" />
               Trazar ruta en el Mapa
             </a>
           </div>
 
           {/* Mapa Iframe */}
-          <div className="w-full md:w-1/2 min-h-[400px] md:min-h-full relative bg-slate-200">
+          <div className="w-full md:w-1/2 min-h-[400px] md:min-h-full relative bg-slate-200 overflow-hidden">
             {/* Mapa insertado en el fondo a pantalla dividida */}
             <iframe 
-               src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d125585.5002476572!2d-66.99479679199344!3d10.46869880860882!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x8c2a58adcd824807%3A0x93dd2eae0a998483!2sCaracas%2C%20Capital%20District!5e0!3m2!1sen!2sve!4v1700000000000!5m2!1sen!2sve" 
+               src="https://maps.google.com/maps?q=Repuestos+Sotomayor+C.A.,+Valencia,+Carabobo&t=&z=16&ie=UTF8&iwloc=&output=embed" 
                className="absolute inset-0 w-full h-full border-0 filter contrast-125 saturate-50" 
                allowFullScreen={false} 
                loading="lazy" 

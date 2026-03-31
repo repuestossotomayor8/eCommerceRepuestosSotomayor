@@ -20,10 +20,11 @@ interface CsvRow {
   description?: string;
   code_1?: string;
   code_2?: string;
-  category: string;   // name — resolved to ID
-  brand?: string;     // name — resolved to ID
+  category: string;
+  brand?: string;
   image_url?: string;
   image_2?: string;
+  stock?: string;     // Columna de estado/stock
 }
 
 interface PreviewRow extends CsvRow {
@@ -35,6 +36,7 @@ interface PreviewRow extends CsvRow {
   _is_new_brand?: boolean;
   _is_update?: boolean;
   _product_id?: string;
+  _stock_status?: boolean;
 }
 
 const BATCH_SIZE = 50;
@@ -65,6 +67,7 @@ export default function ImportarProductosPage() {
   const [importing, setImporting]   = useState(false);
   const [progress, setProgress]     = useState(0);
   const [done, setDone]             = useState(false);
+  const [exporting, setExporting]   = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -112,7 +115,9 @@ export default function ImportarProductosPage() {
           "codigo oem": "code_1",
           "cod. alterno": "code_2",
           "url imagen": "image_url",
-          "url img extra": "image_2"
+          "url img extra": "image_2",
+          "estado": "stock",
+          "stock": "stock"
         };
 
         const parsed: CsvRow[] = [];
@@ -152,6 +157,15 @@ export default function ImportarProductosPage() {
           const isNewCat = !cat && !!catNameNorm;
           const isNewBrand = !brand && !!brandNameNorm;
 
+          // Detectar estado
+          let isStockActive = true; // Por defecto activos
+          if (row.stock) {
+            const st = normalizeStr(row.stock);
+            if (["inactivo", "agotado", "false", "0", "no", "desactivado"].includes(st)) {
+              isStockActive = false;
+            }
+          }
+
           if (!row.name || row.name.trim() === "") { 
             status = "error"; error = "Nombre requerido"; 
           }
@@ -172,7 +186,8 @@ export default function ImportarProductosPage() {
             _is_new_category: isNewCat,
             _is_new_brand: isNewBrand,
             _is_update: !!existingMatch,
-            _product_id: existingMatch?.id
+            _product_id: existingMatch?.id,
+            _stock_status: isStockActive
           };
         });
         
@@ -243,9 +258,9 @@ export default function ImportarProductosPage() {
         code_2:      row.code_2 || null,
         category_id: catId!,
         brand_id:    brandId || null,
-        image_url:   row.image_url || "https://placehold.co/400x400?text=Repuesto",
+        image_url:   row.image_url || (row._is_update ? undefined : "https://placehold.co/400x400?text=Repuesto"),
         image_2:     row.image_2 || null,
-        stock_status: true,
+        stock_status: row._stock_status !== undefined ? row._stock_status : true,
       };
     });
 
@@ -299,6 +314,167 @@ export default function ImportarProductosPage() {
     a.click();
   };
 
+  const handleExport = async () => {
+    try {
+      setExporting(true);
+      toast.loading("Exportando catálogo, por favor espera...", { id: "export" });
+
+      const { data, error } = await supabase
+        .from('products')
+        .select(`
+          name, price, description, code_1, code_2, image_url, image_2, stock_status,
+          categories (name),
+          brands (name)
+        `)
+        .order('name');
+
+      if (error) throw error;
+      if (!data || data.length === 0) {
+        toast.dismiss("export");
+        toast.error("No hay productos para exportar");
+        return;
+      }
+
+      // ── ExcelJS: Crear Workbook profesional ──
+      const ExcelJS = (await import("exceljs")).default;
+      const workbook = new ExcelJS.Workbook();
+      workbook.creator = "Repuestos Sotomayor C.A.";
+      workbook.created = new Date();
+
+      const sheet = workbook.addWorksheet("Productos", {
+        views: [{ state: "frozen", ySplit: 2 }], // Congela fila de título + cabecera
+      });
+
+      // ── Colores corporativos ──
+      const PRIMARY = "C0392B";   // Rojo Sotomayor
+      const DARK    = "2C3E50";   // Azul oscuro
+      const LIGHT   = "F8F9FA";   // Gris claro para filas alternas
+      const WHITE   = "FFFFFF";
+
+      // ── Fila 1: Título corporativo ──
+      const COLUMNS = [
+        { header: "Nombre",        key: "name",        width: 38 },
+        { header: "Precio USD",    key: "price",       width: 14 },
+        { header: "Categoría",     key: "category",    width: 22 },
+        { header: "Marca",         key: "brand",       width: 18 },
+        { header: "Estado",        key: "status",      width: 12 },
+        { header: "Descripción",   key: "description", width: 50 },
+        { header: "Código OEM",    key: "code_1",      width: 16 },
+        { header: "Cod. Alterno",  key: "code_2",      width: 16 },
+        { header: "URL Imagen",    key: "image_url",   width: 32 },
+        { header: "URL Img Extra", key: "image_2",     width: 32 },
+      ];
+
+      sheet.columns = COLUMNS;
+
+      // Fila 1 → Título corporativo fusionado
+      sheet.mergeCells(1, 1, 1, COLUMNS.length);
+      const titleCell = sheet.getCell("A1");
+      titleCell.value = `CATÁLOGO DE PRODUCTOS — REPUESTOS SOTOMAYOR C.A. — ${new Date().toLocaleDateString("es-VE", { day: "2-digit", month: "long", year: "numeric" })}`;
+      titleCell.font = { name: "Calibri", size: 13, bold: true, color: { argb: WHITE } };
+      titleCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: DARK } };
+      titleCell.alignment = { horizontal: "center", vertical: "middle" };
+      sheet.getRow(1).height = 32;
+
+      // Fila 2 → Cabeceras de columnas (ya definidas por sheet.columns)
+      const headerRow = sheet.getRow(2);
+      headerRow.values = COLUMNS.map(c => c.header);
+      headerRow.height = 24;
+      headerRow.eachCell((cell) => {
+        cell.font = { name: "Calibri", size: 11, bold: true, color: { argb: WHITE } };
+        cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: PRIMARY } };
+        cell.alignment = { horizontal: "center", vertical: "middle" };
+        cell.border = {
+          top: { style: "thin", color: { argb: DARK } },
+          bottom: { style: "thin", color: { argb: DARK } },
+          left: { style: "thin", color: { argb: DARK } },
+          right: { style: "thin", color: { argb: DARK } },
+        };
+      });
+
+      // ── Llenar datos desde fila 3 ──
+      data.forEach((item, idx) => {
+        const catName = Array.isArray(item.categories)
+          ? item.categories[0]?.name
+          : (item.categories as any)?.name || "";
+        const brandName = Array.isArray(item.brands)
+          ? item.brands[0]?.name
+          : (item.brands as any)?.name || "";
+
+        const row = sheet.addRow({
+          name:        item.name,
+          price:       item.price,
+          category:    catName,
+          brand:       brandName,
+          status:      item.stock_status ? "Activo" : "Inactivo",
+          description: item.description || "",
+          code_1:      item.code_1 || "",
+          code_2:      item.code_2 || "",
+          image_url:   item.image_url || "",
+          image_2:     item.image_2 || "",
+        });
+
+        const isEven = idx % 2 === 0;
+        row.eachCell({ includeEmpty: true }, (cell) => {
+          cell.font = { name: "Calibri", size: 10 };
+          cell.border = {
+            bottom: { style: "hair", color: { argb: "D5D8DC" } },
+            left:   { style: "hair", color: { argb: "D5D8DC" } },
+            right:  { style: "hair", color: { argb: "D5D8DC" } },
+          };
+          if (isEven) {
+            cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: LIGHT } };
+          }
+        });
+
+        // Formato moneda para precio
+        const priceCell = row.getCell("price");
+        priceCell.numFmt = '"$"#,##0.00';
+        priceCell.alignment = { horizontal: "right" };
+
+        // Badge visual para Estado
+        const statusCell = row.getCell("status");
+        statusCell.alignment = { horizontal: "center" };
+        if (!item.stock_status) {
+          statusCell.font = { name: "Calibri", size: 10, bold: true, color: { argb: "E74C3C" } };
+        } else {
+          statusCell.font = { name: "Calibri", size: 10, color: { argb: "27AE60" } };
+        }
+      });
+
+      // ── Auto-filtro en la fila de cabeceras ──
+      sheet.autoFilter = {
+        from: { row: 2, column: 1 },
+        to:   { row: 2 + data.length, column: COLUMNS.length },
+      };
+
+      // ── Fila de resumen al final ──
+      const summaryRowNum = data.length + 3;
+      sheet.mergeCells(summaryRowNum, 1, summaryRowNum, 3);
+      const summaryCell = sheet.getCell(summaryRowNum, 1);
+      summaryCell.value = `Total de productos: ${data.length}`;
+      summaryCell.font = { name: "Calibri", size: 11, bold: true, italic: true, color: { argb: DARK } };
+
+      // ── Generar archivo y descargar ──
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `catalogo_sotomayor_${new Date().toISOString().split('T')[0]}.xlsx`;
+      a.click();
+      URL.revokeObjectURL(url);
+
+      toast.dismiss("export");
+      toast.success(`¡Se han exportado ${data.length} productos con éxito!`);
+    } catch (err: any) {
+      toast.dismiss("export");
+      toast.error(`Error al exportar: ${err.message}`);
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
     <div className="flex-1 space-y-6 p-8 pt-6">
       {/* Header */}
@@ -311,19 +487,25 @@ export default function ImportarProductosPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="font-display text-2xl font-black uppercase tracking-tight">Importación Masiva</h1>
-          <p className="text-sm text-muted-foreground mt-1">Carga cientos de productos usando un archivo de Excel o CSV.</p>
+          <p className="text-sm text-muted-foreground mt-1">Carga o exporta tu catálogo de productos usando archivos Excel o CSV.</p>
         </div>
-        <Button variant="outline" onClick={downloadTemplate} className="gap-2 shrink-0">
-          <DownloadCloud className="w-4 h-4" />
-          Descargar Plantilla Excel
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="default" onClick={handleExport} disabled={exporting} className="gap-2 shrink-0 bg-primary/90 hover:bg-primary">
+            {exporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <DownloadCloud className="w-4 h-4" />}
+            {exporting ? "Exportando..." : "Exportar Catálogo"}
+          </Button>
+          <Button variant="outline" onClick={downloadTemplate} className="gap-2 shrink-0">
+            <FileText className="w-4 h-4" />
+            Plantilla Vacía
+          </Button>
+        </div>
       </div>
 
       {/* Instructions */}
       <div className="rounded-xl border bg-muted/40 p-4 text-sm space-y-1">
         <p className="font-bold text-foreground">📋 Columnas requeridas en el archivo:</p>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-1 mt-2 font-mono text-xs">
-          {["Nombre ✱", "Precio USD ✱", "Categoría ✱", "Marca", "Descripción", "Código OEM", "Cod. Alterno", "URL Imagen", "URL Img Extra"].map(col => (
+          {["Nombre ✱", "Precio USD ✱", "Categoría ✱", "Estado", "Marca", "Descripción", "Código OEM", "Cod. Alterno", "URL Imagen", "URL Img Extra"].map(col => (
             <span key={col} className={`bg-background border rounded px-2 py-1 ${col.includes("✱") ? "border-primary/40 text-primary" : "text-muted-foreground"}`}>
               {col}
             </span>
@@ -374,6 +556,7 @@ export default function ImportarProductosPage() {
                   <th className="px-3 py-2 text-left font-bold text-xs uppercase tracking-wider">Categoría</th>
                   <th className="px-3 py-2 text-left font-bold text-xs uppercase tracking-wider">Marca</th>
                   <th className="px-3 py-2 text-left font-bold text-xs uppercase tracking-wider">Estado</th>
+                  <th className="px-3 py-2 text-left font-bold text-xs uppercase tracking-wider">Verificación</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
@@ -392,6 +575,13 @@ export default function ImportarProductosPage() {
                     <td className="px-3 py-2">
                       {row.brand || <span className="text-muted-foreground/50">—</span>}
                       {row._is_new_brand && <span className="ml-2 text-[10px] bg-primary/20 text-primary px-1.5 py-0.5 rounded-full font-bold">NUEVA</span>}
+                    </td>
+                    <td className="px-3 py-2">
+                      {row._stock_status ? (
+                        <span className="text-[10px] bg-green-500/10 text-green-600 border border-green-500/20 px-1.5 py-0.5 rounded-full font-bold">ACTIVO</span>
+                      ) : (
+                        <span className="text-[10px] bg-muted text-muted-foreground border border-border px-1.5 py-0.5 rounded-full font-bold">INACTIVO</span>
+                      )}
                     </td>
                     <td className="px-3 py-2">
                       {row._status === "error" ? (

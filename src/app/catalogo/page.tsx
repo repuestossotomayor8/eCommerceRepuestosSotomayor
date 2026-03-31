@@ -6,6 +6,7 @@ import Footer from "@/components/Footer";
 import WhatsAppButton from "@/components/WhatsAppButton";
 import DiscountBanner from "@/components/DiscountBanner";
 import FloatingCartButton from "@/components/FloatingCartButton";
+import PullToRefresh from "@/components/PullToRefresh";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -38,19 +39,20 @@ const CatalogoPage = async ({ searchParams }: Props) => {
     <div className="flex min-h-screen flex-col overflow-x-hidden">
       <Header />
       <main className="flex-1">
-
-        <div className="container mx-auto px-4 py-8 flex flex-col md:flex-row gap-8 lg:gap-10">
-          <CatalogSidebar categories={categories} brands={brands} />
-          <div className="flex-1 w-full min-w-0">
-            <ProductsSection 
-              searchQuery={q} 
-              page={page} 
-              categoria={categoria}
-              marca={marca}
-              sort={sort}
-            />
+        <PullToRefresh>
+          <div className="container mx-auto px-4 py-6 md:py-8 flex flex-col md:flex-row gap-6 md:gap-8 lg:gap-10">
+            <CatalogSidebar categories={categories} brands={brands} />
+            <div className="flex-1 w-full min-w-0">
+              <ProductsSection 
+                searchQuery={q} 
+                page={page} 
+                categoria={categoria}
+                marca={marca}
+                sort={sort}
+              />
+            </div>
           </div>
-        </div>
+        </PullToRefresh>
       </main>
       <Footer />
       <WhatsAppButton />
